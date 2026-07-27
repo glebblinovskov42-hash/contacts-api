@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -22,6 +23,7 @@ import (
 type contact struct {
 	Name   string
 	Number string
+	IsFav  bool
 }
 
 var allContacts []contact
@@ -103,6 +105,35 @@ func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+func handleFavContacts(w http.ResponseWriter, r *http.Request) {
+	defer mtx.Unlock()
+	mtx.Lock()
+
+	var favList []contact
+	favoriteFilter := r.URL.Query().Get("favorite")
+	if favoriteFilter == "" {
+		http.Error(w, "Не указан фильтр поиска", http.StatusBadRequest)
+		return
+	}
+
+	b, err := strconv.ParseBool(favoriteFilter)
+	if err != nil {
+		http.Error(w, "Неверно указан фильтр", http.StatusBadRequest)
+	}
+
+	for _, v := range allContacts {
+		if b == v.IsFav {
+			favList = append(favList, v)
+		}
+	}
+	if len(favList) <= 0 {
+		http.Error(w, "По указаному фильтру не найдено контактов", http.StatusNotFound)
+	}
+
+	f, _ := json.MarshalIndent(favList, "", "    ")
+	w.Write(f)
+}
+
 func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 	defer mtx.Unlock()
 	mtx.Lock()
@@ -131,7 +162,7 @@ func main() {
 	router.Path("/contacts").Methods("POST").HandlerFunc(handleCreateContact)
 	router.Path("/contacts").Methods("GET").HandlerFunc(handleAllContacts)
 	router.Path("/contacts/{Name}").Methods("PUT").HandlerFunc(handleUpdateContact)
-	//router.Path("/contacts/")
+	router.Path("/contacts/fav").Methods("GET").HandlerFunc(handleFavContacts)
 	router.Path("/contacts/{Name}").Methods("DELETE").HandlerFunc(handleDeleteContact)
 
 	if err := http.ListenAndServe(":9091", router); err != nil {
