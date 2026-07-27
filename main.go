@@ -128,8 +128,10 @@ func handleFavContacts(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(favList) <= 0 {
 		http.Error(w, "По указаному фильтру не найдено контактов", http.StatusNotFound)
+		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	f, _ := json.MarshalIndent(favList, "", "    ")
 	w.Write(f)
 }
