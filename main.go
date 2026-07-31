@@ -1,6 +1,8 @@
 package main
 
 import (
+	"api/db"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,27 +14,23 @@ import (
 )
 
 /*
-	func Map[T, U any](s []T, fn func(T) U) []U {
-		var res []U
-		for _, v := range s{
-			res = append(res, fn(v))
-		}
-		return res
+	type contact struct {
+		Name   string
+		Number string
+		IsFav  bool
 	}
-*/
-type contact struct {
-	Name   string
-	Number string
-	IsFav  bool
-}
 
 var allContacts []contact
+*/
+var contact db.ContactModel
 var mtx = sync.RWMutex{}
+var ctx = context.Background()
+var conn, err = db.CreateConnection(ctx)
 
-func numValidation(n contact) error {
-	if n.Name == "" {
+func numValidation(contact db.ContactModel) error {
+	if contact.Name == "" {
 		return errors.New("Передано пустое поле")
-	} else if len(n.Number) != 11 {
+	} else if len(contact.Number) != 11 {
 		return errors.New("Передан не валидный номер")
 	}
 	return nil
@@ -41,7 +39,72 @@ func numValidation(n contact) error {
 func handleCreateContact(w http.ResponseWriter, r *http.Request) {
 	defer mtx.Unlock()
 	mtx.Lock()
-	var contact contact
+
+	if err := json.NewDecoder(r.Body).Decode(&contact); err != nil {
+		http.Error(w, "Ошибка чтения", http.StatusBadRequest)
+		return
+	}
+
+	if err := numValidation(contact); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := db.InsertRaw(ctx, conn, contact); err != nil {
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	b, err := json.MarshalIndent(contact, "", "    ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Write(b)
+}
+
+func handleAllContacts(w http.ResponseWriter, r *http.Request) {
+	defer mtx.RUnlock()
+	mtx.RLock()
+
+	contacts, err := db.SelectContacts(ctx, conn)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(contacts) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	b, err := json.MarshalIndent(contacts, "", "    ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Write(b)
+}
+
+func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	idStr := mux.Vars(r)["ID"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		panic(err)
+	}
+
+	exist, err := db.ContactExist(ctx, conn, id)
+	if err != nil {
+		panic(err)
+	}
+
+	if !exist {
+		http.Error(w, "Контакт не найден", http.StatusNotFound)
+		return
+	}
+
+	contact.ID = id
 
 	if err := json.NewDecoder(r.Body).Decode(&contact); err != nil {
 		http.Error(w, "Ошибка чтения", http.StatusBadRequest)
@@ -52,56 +115,15 @@ func handleCreateContact(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	allContacts = append(allContacts, contact)
-
-	w.WriteHeader(http.StatusCreated)
-	b, _ := json.MarshalIndent(contact, "", "    ")
-	w.Write(b)
-}
-
-func handleAllContacts(w http.ResponseWriter, r *http.Request) {
-	defer mtx.RUnlock()
-	mtx.RLock()
-	if len(allContacts) == 0 {
-		w.WriteHeader(http.StatusNotFound)
-		return
+	if err := db.UpdateContact(ctx, conn, contact); err != nil {
+		panic(err)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	b, _ := json.MarshalIndent(allContacts, "", "    ")
-	w.Write(b)
-}
-
-func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
-	mtx.Lock()
-	defer mtx.Unlock()
-	Name := mux.Vars(r)["Name"]
-	var contact contact
-	var contactHave bool
-
-	for k, v := range allContacts {
-		if Name == v.Name {
-			contactHave = true
-			if err := json.NewDecoder(r.Body).Decode(&contact); err != nil {
-				http.Error(w, "Ошибка чтения", http.StatusBadRequest)
-				return
-			}
-
-			if err := numValidation(contact); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			}
-			allContacts[k] = contact
-			break
-		}
-
+	b, err := json.MarshalIndent(contact, "", "    ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	if !contactHave {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	b, _ := json.MarshalIndent(contact, "", "    ")
 	w.Write(b)
 }
 
@@ -109,63 +131,67 @@ func handleFavContacts(w http.ResponseWriter, r *http.Request) {
 	defer mtx.Unlock()
 	mtx.Lock()
 
-	var favList []contact
-	favoriteFilter := r.URL.Query().Get("favorite")
-	if favoriteFilter == "" {
-		http.Error(w, "Не указан фильтр поиска", http.StatusBadRequest)
-		return
-	}
-
-	b, err := strconv.ParseBool(favoriteFilter)
+	contacts, err := db.FavContacts(ctx, conn)
 	if err != nil {
-		http.Error(w, "Неверно указан фильтр", http.StatusBadRequest)
+		panic(err)
 	}
 
-	for _, v := range allContacts {
-		if b == v.IsFav {
-			favList = append(favList, v)
-		}
-	}
-	if len(favList) <= 0 {
-		http.Error(w, "По указаному фильтру не найдено контактов", http.StatusNotFound)
+	if len(contacts) == 0 {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	f, _ := json.MarshalIndent(favList, "", "    ")
-	w.Write(f)
+	b, err := json.MarshalIndent(contacts, "", "    ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Write(b)
 }
 
 func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 	defer mtx.Unlock()
 	mtx.Lock()
 
-	Name := mux.Vars(r)["Name"]
-
-	var contactHave bool
-	for k, v := range allContacts {
-		if Name == v.Name {
-			contactHave = true
-			allContacts = append(allContacts[:k], allContacts[k+1:]...)
-			w.WriteHeader(http.StatusNoContent)
-			break
-		}
+	ID := mux.Vars(r)["ID"]
+	id, err := strconv.Atoi(ID)
+	if err != nil {
+		panic(err)
 	}
-	if !contactHave {
-		w.WriteHeader(http.StatusNotFound)
+
+	exist, err := db.ContactExist(ctx, conn, id)
+	if err != nil {
+		panic(err)
+	}
+
+	if !exist {
+		http.Error(w, "Контакт не найден", http.StatusNotFound)
 		return
 	}
+
+	if err := db.DeleteContact(ctx, conn, id); err != nil {
+		panic(err)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func main() {
+	conn, err := db.CreateConnection(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := db.CreateTable(ctx, conn); err != nil {
+		panic(err)
+	}
 
 	router := mux.NewRouter()
 
 	router.Path("/contacts").Methods("POST").HandlerFunc(handleCreateContact)
 	router.Path("/contacts").Methods("GET").HandlerFunc(handleAllContacts)
-	router.Path("/contacts/{Name}").Methods("PUT").HandlerFunc(handleUpdateContact)
+	router.Path("/contacts/{ID}").Methods("PUT").HandlerFunc(handleUpdateContact)
 	router.Path("/contacts/fav").Methods("GET").HandlerFunc(handleFavContacts)
-	router.Path("/contacts/{Name}").Methods("DELETE").HandlerFunc(handleDeleteContact)
+	router.Path("/contacts/{ID}").Methods("DELETE").HandlerFunc(handleDeleteContact)
 
 	if err := http.ListenAndServe(":9091", router); err != nil {
 		fmt.Println("Ошибка сервера")
