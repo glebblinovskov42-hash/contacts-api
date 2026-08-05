@@ -13,15 +13,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-/*
-	type contact struct {
-		Name   string
-		Number string
-		IsFav  bool
-	}
-
-var allContacts []contact
-*/
 var contact db.ContactModel
 var mtx = sync.RWMutex{}
 var ctx = context.Background()
@@ -51,7 +42,7 @@ func handleCreateContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.InsertRaw(ctx, conn, contact); err != nil {
-		panic(err)
+		err = errors.New("Ошибка изменения данных")
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -68,7 +59,7 @@ func handleAllContacts(w http.ResponseWriter, r *http.Request) {
 
 	contacts, err := db.SelectContacts(ctx, conn)
 	if err != nil {
-		panic(err)
+		err = errors.New("Ошибка изменения данных")
 	}
 
 	if len(contacts) == 0 {
@@ -91,12 +82,12 @@ func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
 	idStr := mux.Vars(r)["ID"]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		panic(err)
+		err = errors.New("Ошибка преобразования")
 	}
 
 	exist, err := db.ContactExist(ctx, conn, id)
 	if err != nil {
-		panic(err)
+		http.Error(w, "такого контакта не существует", http.StatusNotFound)
 	}
 
 	if !exist {
@@ -116,7 +107,7 @@ func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.UpdateContact(ctx, conn, contact); err != nil {
-		panic(err)
+		err = errors.New("Ошибка изменения данных")
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -128,16 +119,16 @@ func handleUpdateContact(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFavContacts(w http.ResponseWriter, r *http.Request) {
-	defer mtx.Unlock()
-	mtx.Lock()
+	defer mtx.RUnlock()
+	mtx.RLock()
 
 	contacts, err := db.FavContacts(ctx, conn)
 	if err != nil {
-		panic(err)
+		err = errors.New("Ошибка чтения данных")
 	}
 
 	if len(contacts) == 0 {
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, "Отсутствуют избранные контакты", http.StatusNotFound)
 		return
 	}
 
@@ -161,7 +152,7 @@ func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 
 	exist, err := db.ContactExist(ctx, conn, id)
 	if err != nil {
-		panic(err)
+		http.Error(w, "такого контакта не существует", http.StatusNotFound)
 	}
 
 	if !exist {
@@ -170,7 +161,8 @@ func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.DeleteContact(ctx, conn, id); err != nil {
-		panic(err)
+		err = errors.New("Ошибка удаления контакта")
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -178,11 +170,12 @@ func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 func main() {
 	conn, err := db.CreateConnection(ctx)
 	if err != nil {
-		panic(err)
+		err = errors.New("Ошибка подключения к БД")
 	}
 
 	if err := db.CreateTable(ctx, conn); err != nil {
-		panic(err)
+		err = errors.New("Ошибка создания таблицы")
+
 	}
 
 	router := mux.NewRouter()
