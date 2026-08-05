@@ -16,7 +16,7 @@ type ContactModel struct {
 }
 
 func CreateConnection(ctx context.Context) (*pgx.Conn, error) {
-	return pgx.Connect(ctx, "postgres://postgres:sos11982@localhost:5433/postgres?sslmode=disable")
+	return pgx.Connect(ctx, "postgres://postgres:sos11982@localhost:5432/postgres?sslmode=disable")
 }
 
 func CreateTable(ctx context.Context, conn *pgx.Conn) error {
