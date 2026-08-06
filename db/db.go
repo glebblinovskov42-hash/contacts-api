@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,7 +17,8 @@ type ContactModel struct {
 }
 
 func CreateConnection(ctx context.Context) (*pgx.Conn, error) {
-	return pgx.Connect(ctx, "postgres://postgres:sos11982@localhost:5432/postgres?sslmode=disable")
+	conn := os.Getenv("CONN_STRING")
+	return pgx.Connect(ctx, conn)
 }
 
 func CreateTable(ctx context.Context, conn *pgx.Conn) error {
