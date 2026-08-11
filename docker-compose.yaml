@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: postgres_contact
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sos11982
+      POSTGRES_DB: contacts_api
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  application:
+    build: .
+    container_name: contact-api
+    ports:
+      - "9091:9091"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: sos11982
+      DB_NAME: contacts_api
+
+volumes:
+  postgres_data:

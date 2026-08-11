@@ -41,10 +41,18 @@ func handleCreateContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db.InsertRaw(ctx, conn, contact); err != nil {
-		err = errors.New("Ошибка изменения данных")
+	// if err := db.InsertRaw(ctx, conn, contact); err != nil {
+	// 	err = errors.New("Ошибка изменения данных")
+	// }
+
+	id, createdAt, err := db.InsertContactWithTx(ctx, conn, contact)
+	if err != nil {
+		http.Error(w, "Ошибка транзакции", http.StatusInternalServerError)
+		return
 	}
 
+	contact.ID = id
+	contact.CreatedAt = &createdAt
 	w.WriteHeader(http.StatusCreated)
 	b, err := json.MarshalIndent(contact, "", "    ")
 	if err != nil {
@@ -171,6 +179,7 @@ func main() {
 	conn, err := db.CreateConnection(ctx)
 	if err != nil {
 		err = errors.New("Ошибка подключения к БД")
+		return
 	}
 
 	if err := db.CreateTable(ctx, conn); err != nil {

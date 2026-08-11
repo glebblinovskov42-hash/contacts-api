@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -17,7 +18,14 @@ type ContactModel struct {
 }
 
 func CreateConnection(ctx context.Context) (*pgx.Conn, error) {
-	conn := os.Getenv("CONN_STRING")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+
+	conn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
+
 	return pgx.Connect(ctx, conn)
 }
 
@@ -161,4 +169,36 @@ func ContactExist(ctx context.Context, conn *pgx.Conn, id int) (bool, error) {
 
 	err := conn.QueryRow(ctx, sqlQuery, id).Scan(&exist)
 	return exist, err
+}
+
+func InsertContactWithTx(ctx context.Context, conn *pgx.Conn, contact ContactModel) (int, time.Time, error) {
+	var createdAt time.Time
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return 0, createdAt, err
+	}
+
+	sqlQuery := `
+		INSERT INTO contacts (name, number, is_favourite)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at;
+	`
+
+	var id int
+	rows, err := tx.Query(ctx, sqlQuery, contact.Name, contact.Number, contact.IsFav)
+	for rows.Next() {
+		rows.Scan(&id, &createdAt)
+	}
+	defer rows.Close()
+	if err != nil {
+		tx.Rollback(ctx)
+		return 0, createdAt, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return 0, createdAt, err
+	}
+
+	return id, createdAt, nil
 }
