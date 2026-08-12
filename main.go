@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/gorilla/mux"
 )
@@ -176,6 +178,9 @@ func handleDeleteContact(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGTERM)
+	defer stop()
+
 	conn, err := db.CreateConnection(ctx)
 	if err != nil {
 		err = errors.New("Ошибка подключения к БД")
@@ -195,8 +200,13 @@ func main() {
 	router.Path("/contacts/fav").Methods("GET").HandlerFunc(handleFavContacts)
 	router.Path("/contacts/{ID}").Methods("DELETE").HandlerFunc(handleDeleteContact)
 
-	if err := http.ListenAndServe(":9091", router); err != nil {
-		fmt.Println("Ошибка сервера")
-		return
-	}
+	go func() {
+		if err := http.ListenAndServe(":9091", router); err != nil {
+			fmt.Println("Ошибка сервера")
+			return
+		}
+	}()
+
+	<-ctx.Done()
+	fmt.Println("App stop correctly")
 }

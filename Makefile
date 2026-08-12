@@ -9,9 +9,9 @@ migrate-up:
 
 migrate-down:
 	@migrate -path ./migrations -database ${CONN_STRING} down	
-docker-d:
+docker-upd:
 	docker compose up -d
 docker-up:
 	docker compose up
-docker-down:
-	docker compose down
+docker-stop:
+	docker compose stop
