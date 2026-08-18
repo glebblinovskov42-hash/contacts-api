@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_contacts_is_favourite ON contacts (is_favourite);

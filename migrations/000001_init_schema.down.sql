@@ -1,1 +1,1 @@
-DROP INDEX idx_contacts_is_favourite;
+DROP TABLE IF EXISTS contacts;

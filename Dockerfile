@@ -5,6 +5,6 @@ WORKDIR /app
 COPY . .
 
 RUN go mod tidy
-RUN go build -o /app/exe .
+RUN go build -o /app/exe ./cmd/api
 
 CMD ["/app/exe"]

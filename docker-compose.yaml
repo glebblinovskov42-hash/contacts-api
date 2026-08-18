@@ -8,6 +8,11 @@ services:
       POSTGRES_DB: contacts_api
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
   application:
@@ -16,13 +21,16 @@ services:
     ports:
       - "9091:9091"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: sos11982
       DB_NAME: contacts_api
+    volumes:
+      - ./logs:/app/logs
 
 volumes:
   postgres_data:
