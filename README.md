@@ -1,11 +1,11 @@
 REST API для управления контактами на Go. 
 Поддерживает создание, чтение, обновление и удаление контактов, а также фильтрацию по избранным.
 Технологии:
-**Go** (net/http, gorilla/mux)
-**PostgreSQL** (драйвер pgx)
-**Docker** и **Docker Compose**
-**Миграции** (golang-migrate)
-**Логирование** (zap)
+1. **Go** (net/http, gorilla/mux)
+2. **PostgreSQL** (драйвер pgx)
+3. **Docker** и **Docker Compose**
+4. **Миграции** (golang-migrate)
+5. **Логирование** (zap)
 Запуск:
 локально-
 1. Скопируй `.env.example` в `.env` и заполни переменные
