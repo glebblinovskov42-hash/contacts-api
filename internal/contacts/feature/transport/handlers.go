@@ -39,6 +39,30 @@ func NewHandler(service *service.ContactService, logger *zap.Logger) *Handler {
 	}
 }
 
+func parsePagination(r *http.Request) (int, int) {
+	page := 1
+	limit := 10
+
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, _ = strconv.Atoi(l)
+	}
+
+	if page < 1 {
+		page = 1
+	}
+
+	if limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	return limit, offset
+}
+
 func (h *Handler) CreateContact(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("CreateContact called", zap.String("method", r.Method), zap.String("path", r.URL.Path))
 	var req ContactRequest
@@ -68,8 +92,10 @@ func (h *Handler) CreateContact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AllContacts(w http.ResponseWriter, r *http.Request) {
+	limit, offset := parsePagination(r)
+
 	h.logger.Info("AllContacts called", zap.String("method", r.Method), zap.String("path", r.URL.Path))
-	contacts, err := h.service.GetAllContacts(r.Context())
+	contacts, err := h.service.GetAllContacts(r.Context(), limit, offset)
 	if err != nil {
 		if errors.Is(err, service.ErrContactsNotFound) {
 			h.logger.Warn("Have 0 contacts", zap.Error(err))
@@ -163,8 +189,10 @@ func (h *Handler) DeleteContact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) FavContacts(w http.ResponseWriter, r *http.Request) {
+	limit, offset := parsePagination(r)
+
 	h.logger.Info("FavContacts called", zap.String("method", r.Method), zap.String("path", r.URL.Path))
-	contacts, err := h.service.GetFavContacts(r.Context())
+	contacts, err := h.service.GetFavContacts(r.Context(), limit, offset)
 	if err != nil {
 		h.logger.Error("Internal error", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -16,7 +16,7 @@ var (
 )
 
 type ContactStorage interface {
-	GetAll(ctx context.Context) ([]domain.Contact, error)
+	GetAll(ctx context.Context, limit, offset int) ([]domain.Contact, error)
 	Save(ctx context.Context, contact domain.Contact) (int, time.Time, error)
 	GetById(ctx context.Context, id int) (domain.Contact, error)
 	Update(ctx context.Context, contact domain.Contact) error
@@ -46,8 +46,8 @@ func lenValidation(name, number string) error {
 	return nil
 }
 
-func (s *ContactService) GetAllContacts(ctx context.Context) ([]domain.Contact, error) {
-	contacts, err := s.storage.GetAll(ctx)
+func (s *ContactService) GetAllContacts(ctx context.Context, limit, offset int) ([]domain.Contact, error) {
+	contacts, err := s.storage.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +111,8 @@ func (s *ContactService) DeleteContact(ctx context.Context, id int) error {
 	return s.storage.Delete(ctx, id)
 }
 
-func (s *ContactService) GetFavContacts(ctx context.Context) ([]domain.Contact, error) {
-	all, err := s.storage.GetAll(ctx)
+func (s *ContactService) GetFavContacts(ctx context.Context, limit, offset int) ([]domain.Contact, error) {
+	all, err := s.storage.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}

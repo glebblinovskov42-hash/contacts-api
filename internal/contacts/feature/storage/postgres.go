@@ -16,14 +16,15 @@ func NewStorage(conn *pgx.Conn) *Storage {
 	return &Storage{conn: conn}
 }
 
-func (s *Storage) GetAll(ctx context.Context) ([]domain.Contact, error) {
+func (s *Storage) GetAll(ctx context.Context, limit, offset int) ([]domain.Contact, error) {
 	sqlQuery := `
 		SELECT id, name, number, is_favourite, created_at
 		FROM contacts
-		ORDER by id ASC;
+		ORDER by id ASC
+		LIMIT $1 OFFSET $2;
 	`
 
-	rows, err := s.conn.Query(ctx, sqlQuery)
+	rows, err := s.conn.Query(ctx, sqlQuery, limit, offset)
 	if err != nil {
 		return nil, err
 	}
