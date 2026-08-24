@@ -142,7 +142,7 @@ func (h *Handler) UpdateContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdateContact(r.Context(), contact); err != nil {
-		if errors.Is(err, service.ErrContactNodFound) {
+		if errors.Is(err, service.ErrContactNotFound) {
 			h.logger.Warn("Contact not found", zap.Error(err))
 			http.Error(w, "contact not found", http.StatusNotFound)
 			return
@@ -173,7 +173,7 @@ func (h *Handler) DeleteContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.DeleteContact(r.Context(), id); err != nil {
-		if errors.Is(err, service.ErrContactNodFound) {
+		if errors.Is(err, service.ErrContactNotFound) {
 			h.logger.Warn("Contact not found", zap.Error(err))
 			http.Error(w, "contact not found", http.StatusNotFound)
 			return
