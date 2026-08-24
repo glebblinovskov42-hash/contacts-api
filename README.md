@@ -29,7 +29,7 @@ make service-run
 
 docker compose build
 make docker-upd   # detached mode
-# или
+или
 make docker-up    # без detached
 
 #### Примеры запросов
