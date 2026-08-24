@@ -25,6 +25,12 @@ make service-run
 
 ---
 
+#### Для применения миграций:
+make migrate-up 
+make migrate-down
+
+---
+
 #### Для запуска в докер-контейнерах
 
 docker compose build
