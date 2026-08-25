@@ -12,6 +12,7 @@ REST API для управления контактами на Go.
 - **Docker** и **Docker Compose**
 - **Миграции** (golang-migrate)
 - **Логирование** (zap)
+- **Тесты** (testing)
 
 ---
 
