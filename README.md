@@ -53,13 +53,9 @@ Content-Type: application/json
 Получить все контакты:
 GET /contacts
 
----
-
 Получить избранные контакты:
 GET /contacts/fav
 (Также для получения всех контактов и избранных контактов доступна пагинация через query параметры: ?page={int}&limit={int})
-
----
 
 Изменить контакт:
 PUT /contacts/{id}
@@ -70,8 +66,6 @@ Content-Type: application/json
     "num": "98765432100",
     "isfav": false
 }
-
----
 
 Удалить контакт:
 DELETE /contacts/{id}
