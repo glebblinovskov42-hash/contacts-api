@@ -2,7 +2,7 @@
 
 REST API для управления контактами на Go.  
 Поддерживает создание, чтение, обновление и удаление контактов, а также фильтрацию по избранным.
-
+![CI](https://github.com/glebblinovskov42-hash/contacts-api/actions/workflows/ci.yml/badge.svg)
 ---
 
 ## Технологии
